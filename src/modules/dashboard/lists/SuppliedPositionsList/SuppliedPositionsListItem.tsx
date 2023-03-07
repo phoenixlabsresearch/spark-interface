@@ -1,11 +1,9 @@
 import { Trans } from '@lingui/macro';
 import { Button } from '@mui/material';
-import {
-  ComputedUserReserveData,
-  ExtendedFormattedUser,
-} from 'src/hooks/app-data-provider/useAppDataProvider';
+import { useAppDataContext } from 'src/hooks/app-data-provider/useAppDataProvider';
 import { useAssetCaps } from 'src/hooks/useAssetCaps';
 import { useModalContext } from 'src/hooks/useModal';
+import { DashboardReserve } from 'src/utils/dashboardSortUtils';
 
 import { ListColumn } from '../../../../components/lists/ListColumn';
 import { useProtocolDataContext } from '../../../../hooks/useProtocolDataContext';
@@ -22,8 +20,8 @@ export const SuppliedPositionsListItem = ({
   underlyingBalanceUSD,
   usageAsCollateralEnabledOnUser,
   underlyingAsset,
-  user,
-}: ComputedUserReserveData & { user: ExtendedFormattedUser }) => {
+}: DashboardReserve) => {
+  const { user, dsr } = useAppDataContext();
   const { isIsolated, aIncentivesData, isFrozen, isActive } = reserve;
   const { currentMarketData, currentMarket } = useProtocolDataContext();
   const { openSupply, openWithdraw, openCollateralChange, openSwap } = useModalContext();
@@ -32,7 +30,7 @@ export const SuppliedPositionsListItem = ({
 
   const canBeEnabledAsCollateral =
     !debtCeiling.isMaxed &&
-    reserve.usageAsCollateralEnabled &&
+    reserve.reserveLiquidationThreshold !== '0' &&
     ((!reserve.isIsolated && !user.isInIsolationMode) ||
       user.isolatedReserve?.underlyingAsset === reserve.underlyingAsset ||
       (reserve.isIsolated && user.totalCollateralMarketReferenceCurrency === '0'));
@@ -59,9 +57,19 @@ export const SuppliedPositionsListItem = ({
       />
 
       <ListAPRColumn
-        value={Number(reserve.supplyAPY)}
+        value={
+          reserve.symbol === 'sDAI' && dsr != null ? dsr.toNumber() : Number(reserve.supplyAPY)
+        }
         incentives={aIncentivesData}
         symbol={reserve.symbol}
+        tooltip={
+          reserve.symbol === 'sDAI' && dsr != null ? (
+            <Trans>
+              This is the Dai Savings Rate, and not the supply rate. You earn this automatically
+              when converting your DAI to sDAI.
+            </Trans>
+          ) : null
+        }
       />
 
       <ListColumn>

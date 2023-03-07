@@ -1,14 +1,13 @@
 import { InterestRate } from '@aave/contract-helpers';
 import { Trans } from '@lingui/macro';
 import { Button } from '@mui/material';
+import { useAssetCaps } from 'src/hooks/useAssetCaps';
 import { useModalContext } from 'src/hooks/useModal';
 import { useProtocolDataContext } from 'src/hooks/useProtocolDataContext';
+import { DashboardReserve } from 'src/utils/dashboardSortUtils';
 
-import { ListColumn } from '../../../../components/lists/ListColumn';
-import { ComputedUserReserveData } from '../../../../hooks/app-data-provider/useAppDataProvider';
 import { ListAPRColumn } from '../ListAPRColumn';
 import { ListButtonsColumn } from '../ListButtonsColumn';
-import { ListItemAPYButton } from '../ListItemAPYButton';
 import { ListItemWrapper } from '../ListItemWrapper';
 import { ListValueColumn } from '../ListValueColumn';
 
@@ -20,14 +19,14 @@ export const BorrowedPositionsListItem = ({
   stableBorrowsUSD,
   borrowRateMode,
   stableBorrowAPY,
-}: ComputedUserReserveData & { borrowRateMode: InterestRate }) => {
-  const { openBorrow, openRepay, openRateSwitch } = useModalContext();
+}: DashboardReserve) => {
+  const { openBorrow, openRepay } = useModalContext();
   const { currentMarket } = useProtocolDataContext();
+  const { borrowCap } = useAssetCaps();
   const {
     isActive,
     isFrozen,
     borrowingEnabled,
-    stableBorrowRateEnabled,
     sIncentivesData,
     vIncentivesData,
     variableBorrowAPY,
@@ -41,6 +40,7 @@ export const BorrowedPositionsListItem = ({
       detailsAddress={reserve.underlyingAsset}
       currentMarket={currentMarket}
       frozen={reserve.isFrozen}
+      borrowEnabled={reserve.borrowingEnabled}
       data-cy={`dashboardBorrowedListItem_${reserve.symbol.toUpperCase()}_${borrowRateMode}`}
       showBorrowCapTooltips
     >
@@ -58,31 +58,26 @@ export const BorrowedPositionsListItem = ({
         )}
         incentives={borrowRateMode === InterestRate.Variable ? vIncentivesData : sIncentivesData}
         symbol={reserve.symbol}
+        tooltip={
+          reserve.symbol === 'DAI' ? (
+            <Trans>
+              This rate is anchored to the Dai Savings Rate (DSR) and will not change based on usage
+              unless Maker needs to reclaim capital.
+            </Trans>
+          ) : null
+        }
       />
-
-      <ListColumn>
-        <ListItemAPYButton
-          stableBorrowRateEnabled={stableBorrowRateEnabled}
-          borrowRateMode={borrowRateMode}
-          disabled={!stableBorrowRateEnabled || isFrozen || !isActive}
-          onClick={() => openRateSwitch(reserve.underlyingAsset, borrowRateMode)}
-          stableBorrowAPY={reserve.stableBorrowAPY}
-          variableBorrowAPY={reserve.variableBorrowAPY}
-          underlyingAsset={reserve.underlyingAsset}
-          currentMarket={currentMarket}
-        />
-      </ListColumn>
 
       <ListButtonsColumn>
         <Button
           disabled={!isActive}
           variant="contained"
-          onClick={() => openRepay(reserve.underlyingAsset, borrowRateMode)}
+          onClick={() => openRepay(reserve.underlyingAsset, borrowRateMode, isFrozen)}
         >
           <Trans>Repay</Trans>
         </Button>
         <Button
-          disabled={!isActive || !borrowingEnabled || isFrozen}
+          disabled={!isActive || !borrowingEnabled || isFrozen || borrowCap.isMaxed}
           variant="outlined"
           onClick={() => openBorrow(reserve.underlyingAsset)}
         >
